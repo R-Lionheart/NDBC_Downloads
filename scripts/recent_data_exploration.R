@@ -41,14 +41,10 @@ make_hist <- function(df, column_name) {
 }
 
 # File upload -------------------------------------------------------------
-
 recent_og <- fread("data_raw/recent_meteo_2024-10-22.csv", header = T) |>
   filter(MM != "mo")
-# historic_og <- fread("data_raw/historic_meteo_2024-10-22.csv", header = T) |>
-#   filter(MM != "mo")
 col_key <- read.csv("data_secondary/columns_key.csv")
 
-missing_data <- c(c("999", "99.0", "99.00", "999.0", "9999.0"))
 
 # Tidying -----------------------------------------------------------------
 
@@ -108,6 +104,13 @@ make_hist(recent_tidy, "wind_speed_ms") # wind speed
 make_hist(recent_tidy, "wave_ht_m") # wave height, jdf only
 make_hist(recent_tidy, "wave_prd_sec") # wave period, jdf only
 
+## Monthly wind speed distribution
+ggplot(recent_tidy, aes(factor(month), wind_speed_ms)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(x = "Month")
+
+
 # Recent wind direction, windrose
 recent_wind <- recent_tidy %>%
   rename(station = location) %>%
@@ -138,30 +141,35 @@ with(recent_wave, windrose(
   legend_title = "Wave Height, m"
 ))
 
-
-## Time stamp boxes, continuous?
-recent_temps <- recent_tidy |>
+## Sig wave height over time
+recent_wave_line <- recent_tidy |>
   mutate(date = make_datetime(year, month, day, hour)) |>
-  select(date, contains("_c"))
-ggplot(data = recent_temps, 
-       aes(x = date, y = air_temp_c)) +
+  select(date, wave_ht_m) |>
+  drop_na()
+ggplot(data = recent_wave_line, 
+       aes(x = date, y = wave_ht_m)) +
   geom_line()
 
-#TODO delete this, doesn't really make sense
-t <- recent_temps %>%
+## Temperatures over time, all recent data
+recent_temps <- recent_tidy |>
+  mutate(date = make_datetime(year, month, day, hour)) |>
+  select(date, contains("_c")) |>
   pivot_longer(cols = 2:4)
-ggplot(data = t,mapping = aes(x = date, y = value,
-                                   fill = name)) +
+ggplot(data = recent_temps, 
+       aes(x = date, y = value, color = name)) +
+  geom_line()
+
+# Temps grouped by month
+recent_temps_box <- recent_tidy |>
+  select(location, year, month, contains("_c")) |>
+  group_by(location, year, month) |>
+  summarise(across(contains("_c"), ~ mean(.x, na.rm = TRUE))) |>
+  pivot_longer(cols = 4:6)
+ggplot(recent_temps_box, aes(x = factor(month), value, fill=factor(name))) +
   geom_boxplot()
 
 
-## Monthly wind speed distribution
-ggplot(recent_tidy, aes(factor(month), wind_speed_ms)) +
-  geom_boxplot() +
-  theme_minimal() +
-  labs(x = "Month")
 
-## Sig wave height over time?
 ## Time series of wind speed? Facet wrap by month?
 ## mean/max/median wind speed over time
 ## Weibull fit (define weibull)

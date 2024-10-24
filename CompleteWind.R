@@ -1,7 +1,8 @@
 ## Complete mock script
 library(clifro)
-library(tidyverse)
 library(data.table)
+library(gt)
+library(tidyverse)
 
 ## Station codes as a vector:
 station_codes <- c(port_townsend = "PTWW1", 

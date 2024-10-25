@@ -110,7 +110,6 @@ ggplot(recent_tidy, aes(factor(month), wind_speed_ms)) +
   theme_minimal() +
   labs(x = "Month")
 
-
 # Recent wind direction, windrose
 recent_wind <- recent_tidy %>%
   rename(station = location) %>%
@@ -167,30 +166,3 @@ recent_temps_box <- recent_tidy |>
   pivot_longer(cols = 4:6)
 ggplot(recent_temps_box, aes(x = factor(month), value, fill=factor(name))) +
   geom_boxplot()
-
-
-
-## Time series of wind speed? Facet wrap by month?
-## mean/max/median wind speed over time
-## Weibull fit (define weibull)
-weibull_fit <- fitdistr(df$windspeedat100mms, "weibull")
-x <- seq(0, 20, .01)
-weibull_density <- tibble(x, y = dweibull(x = x, shape = weibull_fit$estimate[1], scale = weibull_fit$estimate[2]))
-ggplot(df, aes(windspeedat100mms)) +
-  geom_histogram(aes(y = ..density..), bins = 30, color = "white") +
-  geom_line(data = weibull_density, aes(x = x, y = y), color = "red") +
-  theme_minimal()
-
-## Visualize wind speed over time on a map, animated? Raster image?
-## Aggregates?
-monthly <- df %>%
-  group_by(Month) %>%
-  summarise(
-    hours = n() / 12,
-    windspeedat100mms = mean(windspeedat100mms),
-    mwh = sum(kw, na.rm = T) / (1000 * 12)
-  ) %>%
-  mutate(ncf = percent(mwh / (hours * 1.5)))
-kable(monthly, digits = 1, caption = "monthly totals", align = "c")
-
-## Predictions?

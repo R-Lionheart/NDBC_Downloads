@@ -159,7 +159,7 @@ all_POT_wave <- all_data_wave |>
 exceedance_windows_wave <- all_POT_wave %>%
   filter(above_threshold == TRUE) %>%
   group_by(event_id) %>%
-  mutate(
+  summarise(
     max_wave_ht = max(wave_ht_m),  # Maximum wind speed in each window
     max_time = timestamp[which.max(wave_ht_m)]  # Timestamp of the maximum wind speed
   ) %>%
@@ -180,9 +180,9 @@ ggplot(all_POT_wave, aes(x = timestamp, y = wave_ht_m)) +
   geom_point(data = exceedance_windows_wave, aes(x = max_time, y = max_wave_ht), 
              color = "blue", size = 3, shape = 4) +  # Highlight maximum points in exceedance windows
   labs(title = "Peaks Over Threshold, Wave Height",
-       subtitle = paste("Threshold:", threshold, "m/s, Juan de Fuca Buoy"),
+       subtitle = paste("Threshold:", threshold, "m, Juan de Fuca Buoy"),
        x = "Time",
-       y = "Wind Speed (m/s)") +
+       y = "Wave Height (m)") +
   theme_minimal()
 
 ## Time series of wind speed? Facet wrap by month?

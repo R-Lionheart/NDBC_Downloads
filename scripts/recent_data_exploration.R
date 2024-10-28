@@ -64,6 +64,11 @@ recent_tidy <- recent_numeric %>%
   summarise(across(where(is.numeric), ~ mean(., na.rm = TRUE)), .groups = "drop") %>%
   mutate(across(everything(), ~ ifelse(is.nan(.), NA, .)))
 
+write_parquet(recent_tidy, 
+              paste("data_secondary/recent_meteo_tidy_",
+                    Sys.Date(), ".csv", sep = ""),
+              compression = "snappy")
+
 # Missing data ----------------------------------------------------------------
 print(paste("Percentage of data that is NA:",
             round(sum(is.na(recent_tidy[, 7:20]))/prod(dim(recent_tidy[,7:20])), 2)))

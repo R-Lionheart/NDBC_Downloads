@@ -2,18 +2,22 @@
 library(clifro)
 library(data.table)
 library(gt)
+library(MASS)
 library(tidyverse)
 
 ## Station codes as a vector:
 station_codes <- c(port_townsend = "PTWW1", 
-                   smith_island = "SISW1") 
-                   #juan_de_fuca = "46088")
+                   smith_island = "SISW1", 
+                   juan_de_fuca = "46088")
 
 ## Years of interest as a range:
 years <- 2005:2023
 
 ## Source downloads script:
 source("scripts/download_ndbc_data.R")
+
+
+
 
 ## Define keys for missing data
 missing_data <- c(c("999", "99.0", "99.00", "999.0", "9999.0"))

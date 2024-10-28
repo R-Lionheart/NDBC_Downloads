@@ -166,3 +166,45 @@ recent_temps_box <- recent_tidy |>
   pivot_longer(cols = 4:6)
 ggplot(recent_temps_box, aes(x = factor(month), value, fill=factor(name))) +
   geom_boxplot()
+
+
+# Peaks Over Threshold ----------------------------------------------------
+
+# Peaks over threshold
+threshold <- 8
+recent_POT <- recent_tidy |>
+  filter(location == "port_townsend") |>
+  mutate(wind_speed_ms = round(wind_speed_ms, 2)) |>
+  mutate(timestamp = ymd_h(paste(year, month, day, hour))) |>
+  select(timestamp, location, year, month, day, hour, wind_speed_ms) |>
+  mutate(above_threshold = wind_speed_ms > threshold,
+         event_id = cumsum(c(0, diff(above_threshold)) == 1 & above_threshold))
+
+exceedance_windows <- recent_POT %>%
+  filter(above_threshold == TRUE) %>%
+  group_by(event_id) %>%
+  summarise(
+    max_wind_speed = max(wind_speed_ms),  # Maximum wind speed in each window
+    max_time = timestamp[which.max(wind_speed_ms)]  # Timestamp of the maximum wind speed
+  ) %>%
+  ungroup()
+
+exceedance_summary <- exceedance_windows %>%
+  summarise(
+    num_exceedances = n(),
+    max_exceedance = max(wind_speed_ms),
+    mean_exceedance = mean(wind_speed_ms),
+    threshold_value = threshold
+  )
+print(exceedance_summary)
+
+ggplot(recent_POT, aes(x = timestamp, y = wind_speed_ms)) +
+  geom_line(color = "gray", alpha = 0.9) +  
+  geom_hline(yintercept = threshold, linetype = "dashed", color = "red", linewidth = 1) + 
+  geom_point(data = exceedance_windows, aes(x = max_time, y = max_wind_speed), 
+             color = "blue", size = 3, shape = 4) +  # Highlight maximum points in exceedance windows
+  labs(title = "Peaks Over Threshold",
+       subtitle = paste("Threshold:", threshold, "m/s, ", unique(recent_POT$location)),
+       x = "Time",
+       y = "Wind Speed (m/s)") +
+  theme_minimal()

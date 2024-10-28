@@ -1,0 +1,20 @@
+---
+title: "README"
+author: "Regina Lionheart"
+date: "2024-10-22"
+output: github_document
+---
+
+
+PT = Port Townsend #https://www.ndbc.noaa.gov/station_page.php?station=ptww1
+SI = Smith Island #https://www.ndbc.noaa.gov/station_page.php?station=sisw1
+JDF = Juan de Fuca (buoy) #https://www.ndbc.noaa.gov/station_page.php?station=46088
+
+all headers in downloaded data are explained in the data_key
+
+downloading recent data separately from historic due to different columns/data quality
+meteo data, recent and historic, includes all stations
+
+jdf buoy also had historic continuous wind data so went with that too
+
+Set up github actions to update/concat the most recent data?

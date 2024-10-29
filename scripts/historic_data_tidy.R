@@ -61,10 +61,19 @@ hist_meteo_tidy <- hist_meteo_nona %>%
                            'ptww1' = 'port_townsend',
                            "sisw1" = "smith_island"))
 
-write_parquet(hist_meteo_tidy, 
-          paste("data_secondary/historic_meteo_tidy_",
-                Sys.Date(), ".csv", sep = ""),
-          compression = "snappy")
+# Replace a single outlier value that is a mistake
+final <- hist_meteo_tidy |> 
+  mutate(wind_speed_ms = ifelse(
+    location == "port_townsend" & 
+      year == 2012 &
+      month == 12 &
+      hour == 15,
+    NA, wind_speed_ms))
+
+write_parquet(final, 
+              paste("data_secondary/historic_meteo_tidy_",
+                    Sys.Date(), ".csv", sep = ""),
+              compression = "snappy")
 
 
 # Archive for continuous wind data ----------------------------------------

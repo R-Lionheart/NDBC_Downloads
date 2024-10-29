@@ -22,7 +22,7 @@ make_hist <- function(df, column_name) {
 }
 
 # Load data ----------------------------------------------------------------
-recent_tidy <- read_parquet("data_secondary/recent_meteo_tidy_2024-10-28.csv")
+recent_tidy <- read_parquet("data_secondary/recent_meteo_tidy_2024-10-29.csv")
 
 # Missing data ----------------------------------------------------------------
 print(paste("Percentage of data that is NA:",

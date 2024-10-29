@@ -18,3 +18,5 @@ meteo data, recent and historic, includes all stations
 jdf buoy also had historic continuous wind data so went with that too
 
 Set up github actions to update/concat the most recent data?
+
+One 27 m/s value that is definitely fake and was removed

@@ -1,7 +1,9 @@
 require(clifro)
 require(data.table)
+require(fitdistrplus)
 require(tidyverse)
 require(gt)
+require(MASS)
 require(nanoparquet)
 
 # Functions ---------------------------------------------------------------
@@ -73,25 +75,26 @@ ggplot(tidy_data, aes(factor(month), wind_speed_ms)) +
 # Peaks Over Threshold ----------------------------------------------------
 
 # Peaks over threshold, wind
-recent_data <- read_parquet("data_secondary/recent_meteo_tidy_2024-10-28.csv") |>
+recent_data_wind <- read_parquet("data_secondary/recent_meteo_tidy_2024-10-29.csv") |>
   select(location:hour, wind_speed_ms) |>
   as.data.frame()
 
-historic_data <- tidy_data |>
+historic_data_wind <- tidy_data |>
   select(location:hour, wind_speed_ms) |>
   as.data.frame() 
 
-all_data <- recent_data |> 
-  rbind(historic_data) |>
+all_data_wind <- recent_data_wind |> 
+  rbind(historic_data_wind) |>
   mutate(wind_speed_ms = round(wind_speed_ms, 2))
 
 print(paste("Percentage of historic meteorological data that is NA:",
-            round(sum(is.na(all_data[, 6]), na.rm = TRUE)/length(all_data[, 6]), 3)))
+            round(sum(is.na(all_data_wind[, 6]), na.rm = TRUE) / 
+                    length(all_data_wind[, 6]), 3)))
 
 threshold <- 8
 selected_location <- "port_townsend"
 
-all_POT <- all_data |>
+all_POT_wind <- all_data_wind |>
   filter(location == selected_location) |>
   drop_na() |>
   mutate(wind_speed_ms = round(wind_speed_ms, 2)) |>
@@ -100,7 +103,7 @@ all_POT <- all_data |>
   mutate(above_threshold = wind_speed_ms > threshold,
          event_id = cumsum(c(0, diff(above_threshold)) == 1 & above_threshold))
 
-exceedance_windows <- all_POT %>%
+exceedance_windows_wind <- all_POT_wind %>%
   filter(above_threshold == TRUE) %>%
   group_by(event_id) %>%
   mutate(
@@ -109,28 +112,28 @@ exceedance_windows <- all_POT %>%
   ) %>%
   ungroup()
 
-exceedance_summary <- exceedance_windows %>%
+exceedance_summary_wind <- exceedance_windows_wind %>%
   summarise(
     num_exceedances = n(),
     max_exceedance = max(wind_speed_ms),
     mean_exceedance = mean(wind_speed_ms),
     threshold_value = threshold
   )
-print(exceedance_summary)
+print(exceedance_summary_wind)
 
-ggplot(all_POT, aes(x = timestamp, y = wind_speed_ms)) +
+ggplot(all_POT_wind, aes(x = timestamp, y = wind_speed_ms)) +
   geom_line(color = "gray", alpha = 0.9) +  
   geom_hline(yintercept = threshold, linetype = "dashed", color = "red", linewidth = 1) + 
-  geom_point(data = exceedance_windows, aes(x = max_time, y = max_wind_speed), 
+  geom_point(data = exceedance_windows_wind, aes(x = max_time, y = max_wind_speed), 
              color = "blue", size = 3, shape = 4) +  # Highlight maximum points in exceedance windows
   labs(title = "Peaks Over Threshold",
-       subtitle = paste("Threshold:", threshold, "m/s, ", unique(all_POT$location)),
+       subtitle = paste("Threshold:", threshold, "m/s, ", unique(all_POT_wind$location)),
        x = "Time",
        y = "Wind Speed (m/s)") +
   theme_minimal()
 
-# Peaks over threshold, waves, 
-recent_data_wave <- read_parquet("data_secondary/recent_meteo_tidy_2024-10-28.csv") |>
+# Peaks over threshold, waves
+recent_data_wave <- read_parquet("data_secondary/recent_meteo_tidy_2024-10-29.csv") |>
   select(location:hour, wave_ht_m) |>
   as.data.frame()
 
@@ -159,7 +162,7 @@ all_POT_wave <- all_data_wave |>
 exceedance_windows_wave <- all_POT_wave %>%
   filter(above_threshold == TRUE) %>%
   group_by(event_id) %>%
-  summarise(
+  mutate(
     max_wave_ht = max(wave_ht_m),  # Maximum wind speed in each window
     max_time = timestamp[which.max(wave_ht_m)]  # Timestamp of the maximum wind speed
   ) %>%
@@ -186,32 +189,36 @@ ggplot(all_POT_wave, aes(x = timestamp, y = wave_ht_m)) +
   theme_minimal()
 
 
-## Weibull fit (define weibull)
-t <- all_POT |> filter(wind_speed_ms != 0)
+## Weibull fit for wind only (define weibull)
+weibull_wind <- exceedance_windows_wind |> filter(max_wind_speed != 0) |>
+  select(timestamp, max_wind_speed)
 
 # Fit Weibull distribution to wind speeds
-weibull_fit <- fitdistr(t$wind_speed_ms, "weibull")
+weibull_fit_wind <- fitdistr(weibull_wind$max_wind_speed, "weibull",
+                             lower=c(0,0))
 
 # Output the estimated shape and scale parameters
-weibull_params <- weibull_fit$estimate
+weibull_params <- weibull_fit_wind$estimate
 print(weibull_params)
 
 shape <- weibull_params["shape"]
 scale <- weibull_params["scale"]
 
-ggplot(t, aes(x = wind_speed_ms)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 30, fill = "lightblue", color = "black", alpha = 0.7) +
-  stat_function(fun = dweibull, args = list(shape = shape, scale = scale), color = "red", size = 1.2) +
+ggplot(weibull_wind, aes(x = max_wind_speed)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 bins = 30, fill = "lightblue", color = "black", alpha = 0.7) +
+  stat_function(fun = dweibull, args = list(shape = shape, scale = scale),
+                color = "red", linewidth = 1.2) +
   labs(title = "Weibull Distribution Fit to Wind Speeds", x = "Wind Speed (m/s)", y = "Density") +
   theme_minimal()
 
-# Probability of exceeding 15 m/s
+# Probability of exceeding N m/s
 exceedance_prob <- 1 - pweibull(15, shape = shape, scale = scale)
 print(exceedance_prob)
 
-# Calculate the return level for a 10-year return period (assume 365*24 = 8760 hours per year)
-T_years <- 10
-T_hours <- T_years * 365 * 24
+# Calculate the return level for a 10-year return period 
+# (assume 365*24 = 8760 hours per year)
+T_hours <- 10 * 365 * 24
 
 # Return level for 10-year period
 return_level <- scale * (-log(1 - 1 / T_hours))^(1 / shape)

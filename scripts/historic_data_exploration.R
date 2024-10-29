@@ -103,7 +103,7 @@ all_POT <- all_data |>
 exceedance_windows <- all_POT %>%
   filter(above_threshold == TRUE) %>%
   group_by(event_id) %>%
-  summarise(
+  mutate(
     max_wind_speed = max(wind_speed_ms),  # Maximum wind speed in each window
     max_time = timestamp[which.max(wind_speed_ms)]  # Timestamp of the maximum wind speed
   ) %>%
@@ -166,7 +166,7 @@ exceedance_windows_wave <- all_POT_wave %>%
   ungroup()
 
 exceedance_summary_wave <- exceedance_windows_wave %>%
-  summarise(
+  mutate(
     num_exceedances = n(),
     max_exceedance = max(wave_ht_m),
     mean_exceedance = mean(wave_ht_m),
@@ -185,15 +185,52 @@ ggplot(all_POT_wave, aes(x = timestamp, y = wave_ht_m)) +
        y = "Wave Height (m)") +
   theme_minimal()
 
-## Time series of wind speed? Facet wrap by month?
 
 ## Weibull fit (define weibull)
-# t <- recent_wind |> filter(wind_speed_ms != 0)
-# 
-# weibull_fit <- fitdistr(t$wind_speed_ms, "weibull")
-# x <- seq(0, 20, .01)
-# weibull_density <- tibble(x, y = dweibull(x = x, shape = weibull_fit$estimate[1], scale = weibull_fit$estimate[2]))
-# ggplot(df, aes(windspeedat100mms)) +
-#   geom_histogram(aes(y = ..density..), bins = 30, color = "white") +
-#   geom_line(data = weibull_density, aes(x = x, y = y), color = "red") +
-#   theme_minimal()
+t <- all_POT |> filter(wind_speed_ms != 0)
+
+# Fit Weibull distribution to wind speeds
+weibull_fit <- fitdistr(t$wind_speed_ms, "weibull")
+
+# Output the estimated shape and scale parameters
+weibull_params <- weibull_fit$estimate
+print(weibull_params)
+
+shape <- weibull_params["shape"]
+scale <- weibull_params["scale"]
+
+ggplot(t, aes(x = wind_speed_ms)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30, fill = "lightblue", color = "black", alpha = 0.7) +
+  stat_function(fun = dweibull, args = list(shape = shape, scale = scale), color = "red", size = 1.2) +
+  labs(title = "Weibull Distribution Fit to Wind Speeds", x = "Wind Speed (m/s)", y = "Density") +
+  theme_minimal()
+
+# Probability of exceeding 15 m/s
+exceedance_prob <- 1 - pweibull(15, shape = shape, scale = scale)
+print(exceedance_prob)
+
+# Calculate the return level for a 10-year return period (assume 365*24 = 8760 hours per year)
+T_years <- 10
+T_hours <- T_years * 365 * 24
+
+# Return level for 10-year period
+return_level <- scale * (-log(1 - 1 / T_hours))^(1 / shape)
+print(return_level)
+
+# Wind Roses ----------------------------------------------------
+
+# All wind direction, windrose
+all_windrose <- tidy_data %>%
+  rename(station = location) %>%
+  select(station, contains("wind"))
+with(all_windrose, windrose(
+  speed = wind_speed_ms,
+  direction = wind_dir_origin,
+  station,
+  n_col = 2,
+  n_directions = 12,
+  speed_cuts = seq(0, 16, 4),
+  ggtheme = "bw",
+  col_pal = "Paired",
+  legend_title = "Wind Speed, m/s"
+))

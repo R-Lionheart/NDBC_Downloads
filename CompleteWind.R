@@ -1,6 +1,7 @@
 ## Complete mock script
 library(clifro)
 library(data.table)
+library(fitdistrplus)
 library(gt)
 library(MASS)
 library(tidyverse)
